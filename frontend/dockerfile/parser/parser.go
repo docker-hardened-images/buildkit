@@ -213,6 +213,10 @@ func init() {
 		command.User:        parseString,
 		command.Volume:      parseMaybeJSONToList,
 		command.Workdir:     parseString,
+
+		// DHI
+		command.Apt: parseMaybeJSON,
+		command.Apk: parseMaybeJSON,
 	}
 }
 

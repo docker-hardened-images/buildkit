@@ -21,6 +21,10 @@ const (
 	User        = "user"
 	Volume      = "volume"
 	Workdir     = "workdir"
+
+	// DHI commands
+	Apt = "apt"
+	Apk = "apk"
 )
 
 // Commands is list of all Dockerfile commands
@@ -43,4 +47,8 @@ var Commands = map[string]struct{}{
 	User:        {},
 	Volume:      {},
 	Workdir:     {},
+
+	// DHI commands
+	Apt: {},
+	Apk: {},
 }

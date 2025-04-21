@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -563,4 +564,61 @@ func (c *withExternalData) setExternalValue(k, v any) {
 		c.m = map[any]any{}
 	}
 	c.m[k] = v
+}
+
+type PackageMangerSubcommand struct {
+	Name string
+	Args []string
+}
+
+type PackageMangerCommand struct {
+	withNameAndCode
+	Type    string
+	SubCmds []PackageMangerSubcommand
+}
+
+func (c *PackageMangerCommand) Expand(expander SingleWordExpander) error {
+	for _, sub := range c.SubCmds {
+		err := expandSliceInPlace(sub.Args, expander)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *PackageMangerCommand) ToImage() string {
+	switch c.Type {
+	case "APT":
+		return "dhi/apt:1"
+	case "APK":
+		return "dhi/apk:1"
+	}
+	return ""
+}
+
+func (c *PackageMangerCommand) ToCmd() string {
+	switch c.Type {
+	case "APT":
+		return "dhi-apt"
+	case "APK":
+		return "dhi-apk"
+	}
+	return ""
+}
+
+func (c *PackageMangerCommand) ToShellCommand() string {
+	parts := []string{}
+	for _, sub := range c.SubCmds {
+		parts = append(parts, fmt.Sprintf("%s %s %s", c.ToCmd(), sub.Name, strings.Join(sub.Args, " ")))
+	}
+	return strings.Join(parts, " && ")
+}
+
+func (c *PackageMangerCommand) ToHistory() string {
+	parts := []string{}
+	for _, sub := range c.SubCmds {
+		parts = append(parts, fmt.Sprintf("%s %s", sub.Name, strings.Join(sub.Args, " ")))
+	}
+	return strings.Join(parts, " && ")
 }

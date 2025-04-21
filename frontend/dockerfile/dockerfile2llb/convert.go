@@ -982,6 +982,8 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		err = dispatchStopSignal(d, c)
 	case *instructions.ShellCommand:
 		err = dispatchShell(d, c)
+	case *instructions.PackageMangerCommand:
+		err = dispatchPackageManager(d, c)
 	case *instructions.ArgCommand:
 		err = dispatchArg(d, c, &opt)
 	case *instructions.CopyCommand:
@@ -1808,6 +1810,17 @@ func dispatchStopSignal(d *dispatchState, c *instructions.StopSignalCommand) err
 func dispatchShell(d *dispatchState, c *instructions.ShellCommand) error {
 	d.image.Config.Shell = c.Shell
 	return commitToHistory(&d.image, fmt.Sprintf("SHELL %v", c.Shell), false, nil, d.epoch)
+}
+
+func dispatchPackageManager(d *dispatchState, c *instructions.PackageMangerCommand) error {
+	apt := llb.Image(c.ToImage(), llb.Platform(d.image.Platform))
+	opt := []llb.RunOption{llb.Shlexf("/bin/sh -c '%s'", c.ToShellCommand())}
+	if d.ignoreCache {
+		opt = append(opt, llb.IgnoreCache)
+	}
+	opt = append(opt, llb.AddMount("/out", d.state))
+	d.state = apt.Run(opt...).GetMount("/out")
+	return commitToHistory(&d.image, fmt.Sprintf("APT %s", c.ToHistory()), true, &d.state, d.epoch)
 }
 
 func dispatchArg(d *dispatchState, c *instructions.ArgCommand, opt *dispatchOpt) error {

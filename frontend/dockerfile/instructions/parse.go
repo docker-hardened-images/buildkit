@@ -141,6 +141,10 @@ func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v any, 
 		return argCmd, nil
 	case command.Shell:
 		return parseShell(req)
+	case command.Apt:
+		return parsePackageManager(req)
+	case command.Apk:
+		return parsePackageManager(req)
 	}
 	return nil, suggest.WrapError(&UnknownInstructionError{Instruction: node.Value, Line: node.StartLine}, node.Value, allInstructionNames(), false)
 }
@@ -800,6 +804,44 @@ func parseShell(req parseRequest) (*ShellCommand, error) {
 		// SHELL powershell -command - not JSON
 		return nil, errNotJSON("SHELL", req.original)
 	}
+}
+
+func parsePackageManager(req parseRequest) (*PackageMangerCommand, error) {
+	if err := req.flags.Parse(); err != nil {
+		return nil, err
+	}
+
+	cmd := &PackageMangerCommand{
+		withNameAndCode: newWithNameAndCode(req),
+		Type:            strings.ToUpper(req.command),
+	}
+
+	subCmds := make([]PackageMangerSubcommand, 0)
+	var subCmd PackageMangerSubcommand
+	for _, v := range strings.Split(req.original, " ") {
+		v = strings.TrimSpace(v)
+		if v == "" || strings.ToUpper(v) == cmd.Type {
+			continue
+		}
+		if v == "&&" {
+			subCmds = append(subCmds, subCmd)
+			subCmd = PackageMangerSubcommand{}
+			continue
+		}
+		// ignore any options/flags
+		if strings.HasPrefix(v, "-") {
+			continue
+		}
+		if subCmd.Name == "" {
+			subCmd.Name = v
+		} else {
+			subCmd.Args = append(subCmd.Args, v)
+		}
+	}
+	subCmds = append(subCmds, subCmd)
+	cmd.SubCmds = subCmds
+
+	return cmd, nil
 }
 
 func errAtLeastOneArgument(command string) error {
